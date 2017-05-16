@@ -29,6 +29,7 @@ import net.dv8tion.jda.core.audio.AudioWebSocket;
 import net.dv8tion.jda.core.audio.factory.DefaultSendFactory;
 import net.dv8tion.jda.core.audio.factory.IAudioSendFactory;
 import net.dv8tion.jda.core.entities.*;
+import net.dv8tion.jda.core.events.ReadyEvent;
 import net.dv8tion.jda.core.events.StatusChangeEvent;
 import net.dv8tion.jda.core.exceptions.AccountTypeException;
 import net.dv8tion.jda.core.exceptions.RateLimitedException;
@@ -49,10 +50,7 @@ import org.json.JSONObject;
 import javax.security.auth.login.LoginException;
 import java.io.IOException;
 import java.util.*;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
 public class JDAImpl implements JDA
@@ -99,6 +97,7 @@ public class JDAImpl implements JDA
     protected boolean autoReconnect;
     protected long responseTotal;
     protected long ping = -1;
+    protected CompletableFuture<ReadyEvent> readyCallback = null;
 
     public JDAImpl(AccountType accountType, HttpHost proxy, WebSocketFactory wsFactory,
                    boolean autoReconnect, boolean audioEnabled, boolean useShutdownHook, boolean bulkDeleteSplittingEnabled,
@@ -137,6 +136,20 @@ public class JDAImpl implements JDA
         {
             Runtime.getRuntime().addShutdownHook(shutdownHook);
         }
+    }
+
+    public void ready(ReadyEvent event)
+    {
+        if (readyCallback != null)
+        {
+            readyCallback.complete(event);
+            readyCallback = null;
+        }
+    }
+
+    public void setReadyCallback(CompletableFuture<ReadyEvent> callback)
+    {
+        this.readyCallback = callback;
     }
 
     public void setStatus(Status status)

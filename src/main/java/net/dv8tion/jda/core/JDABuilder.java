@@ -17,10 +17,10 @@ package net.dv8tion.jda.core;
 
 import com.neovisionaries.ws.client.ProxySettings;
 import com.neovisionaries.ws.client.WebSocketFactory;
-import net.dv8tion.jda.core.JDA.Status;
 import net.dv8tion.jda.core.audio.factory.IAudioSendFactory;
 import net.dv8tion.jda.core.entities.Game;
 import net.dv8tion.jda.core.entities.impl.JDAImpl;
+import net.dv8tion.jda.core.events.ReadyEvent;
 import net.dv8tion.jda.core.exceptions.RateLimitedException;
 import net.dv8tion.jda.core.hooks.IEventManager;
 import net.dv8tion.jda.core.managers.impl.PresenceImpl;
@@ -32,6 +32,10 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Used to create new {@link net.dv8tion.jda.core.JDA} instances. This is also useful for making sure all of
@@ -516,11 +520,96 @@ public class JDABuilder
      */
     public JDA buildBlocking() throws LoginException, IllegalArgumentException, InterruptedException, RateLimitedException
     {
-        JDA jda = buildAsync();
-        while(jda.getStatus() != Status.CONNECTED)
+        CompletableFuture<ReadyEvent> callback;
+        JDAImpl jda = (JDAImpl) buildAsync();
+        synchronized (jda)
         {
-            Thread.sleep(50);
+            callback = new CompletableFuture<>();
+            jda.setReadyCallback(callback);
         }
-        return jda;
+        try
+        {
+            if (jda.getStatus() != JDA.Status.CONNECTED)
+                callback.get();
+            return jda;
+        }
+        catch (ExecutionException e)
+        {
+            Throwable cause = e.getCause();
+            if (cause instanceof LoginException)
+                throw (LoginException) cause;
+            else if (cause instanceof IllegalArgumentException)
+                throw (IllegalArgumentException) cause;
+            else if (cause instanceof InterruptedException)
+                throw (InterruptedException) cause;
+            else if (cause instanceof RateLimitedException)
+                throw (RateLimitedException) cause;
+            else if (cause != null)
+                throw new RuntimeException(cause);
+            else
+                throw new RuntimeException(e);
+        }
     }
+
+    /**
+     * Builds a new {@link net.dv8tion.jda.core.JDA} instance and uses the provided token to start the login process.
+     * <br>This method will block until JDA has logged in and finished loading all resources. This is an alternative
+     * to using {@link net.dv8tion.jda.core.events.ReadyEvent ReadyEvent}.
+     *
+     * @param   timeout
+     *          the maximum time to wait
+     * @param   unit
+     *          the time unit of the timeout argument
+     *
+     * @throws  LoginException
+     *          If the provided token is invalid.
+     * @throws  IllegalArgumentException
+     *          If the provided token is empty or null.
+     * @throws  InterruptedException
+     *          If an interrupt request is received while waiting for {@link net.dv8tion.jda.core.JDA} to finish logging in.
+     *          This would most likely be caused by a JVM shutdown request.
+     * @throws  RateLimitedException
+     *          If we are being Rate limited.
+     *
+     * @return A {@link net.dv8tion.jda.core.JDA} Object that is <b>guaranteed</b> to be logged in and finished loading.
+     */
+    public JDA buildBlocking(long timeout, TimeUnit unit)
+        throws LoginException, IllegalArgumentException, InterruptedException, RateLimitedException, TimeoutException
+    {
+        CompletableFuture<ReadyEvent> callback;
+        JDAImpl jda = (JDAImpl) buildAsync();
+        synchronized (jda)
+        {
+            callback = new CompletableFuture<>();
+            jda.setReadyCallback(callback);
+        }
+        try
+        {
+            if (jda.getStatus() != JDA.Status.CONNECTED)
+                callback.get(timeout, unit);
+            return jda;
+        }
+        catch (TimeoutException e)
+        {
+            jda.shutdown();
+            throw e;
+        }
+        catch (ExecutionException e)
+        {
+            Throwable cause = e.getCause();
+            if (cause instanceof LoginException)
+                throw (LoginException) cause;
+            else if (cause instanceof IllegalArgumentException)
+                throw (IllegalArgumentException) cause;
+            else if (cause instanceof InterruptedException)
+                throw (InterruptedException) cause;
+            else if (cause instanceof RateLimitedException)
+                throw (RateLimitedException) cause;
+            else if (cause != null)
+                throw new RuntimeException(cause);
+            else
+                throw new RuntimeException(e);
+        }
+    }
+
 }

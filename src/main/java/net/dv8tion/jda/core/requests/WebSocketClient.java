@@ -137,7 +137,9 @@ public class WebSocketClient extends WebSocketAdapter implements WebSocketListen
                     JDAImpl.LOG.warn("connection might not work as expected.");
                     JDAImpl.LOG.warn("For more info see https://git.io/vrFWP");
                 }
-                api.getEventManager().handle(new ReadyEvent(api, api.getResponseTotal()));
+                final ReadyEvent readyEvent = new ReadyEvent(api, api.getResponseTotal());
+                api.getEventManager().handle(readyEvent);
+                api.ready(readyEvent);
             }
             else
             {
