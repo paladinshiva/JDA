@@ -195,6 +195,9 @@ public class GuildManager
      * @param  level
      *         The new Verification Level for this {@link net.dv8tion.jda.core.entities.Guild Guild}
      *
+     * @throws java.lang.IllegalArgumentException
+     *         If the provided level is {@code null} or {@link net.dv8tion.jda.core.entities.Guild.VerificationLevel#UNKNOWN UNKNOWN}
+     *
      * @return {@link net.dv8tion.jda.core.requests.RestAction RestAction}
      *         <br>Update RestAction from {@link GuildManagerUpdatable#update() #update()}
      *
@@ -215,6 +218,9 @@ public class GuildManager
      *
      * @param  level
      *         The new Notification Level for this {@link net.dv8tion.jda.core.entities.Guild Guild}
+     *
+     * @throws java.lang.IllegalArgumentException
+     *         If the provided level is {@code null} or {@link net.dv8tion.jda.core.entities.Guild.NotificationLevel#UNKNOWN UNKNOWN}
      *
      * @return {@link net.dv8tion.jda.core.requests.RestAction RestAction}
      *         <br>Update RestAction from {@link GuildManagerUpdatable#update() #update()}
@@ -237,6 +243,9 @@ public class GuildManager
      * @param  level
      *         The new MFA Level for this {@link net.dv8tion.jda.core.entities.Guild Guild}
      *
+     * @throws java.lang.IllegalArgumentException
+     *         If the provided level is {@code null} or {@link net.dv8tion.jda.core.entities.Guild.MFALevel#UNKNOWN UNKNOWN}
+     *
      * @return {@link net.dv8tion.jda.core.requests.RestAction RestAction}
      *         <br>Update RestAction from {@link GuildManagerUpdatable#update() #update()}
      *
@@ -246,5 +255,29 @@ public class GuildManager
     public RestAction<Void> setRequiredMFALevel(Guild.MFALevel level)
     {
         return updatable.getRequiredMFALevelField().setValue(level).update();
+    }
+
+    /**
+     * Sets the {@link net.dv8tion.jda.core.entities.Guild.ExplicitContentLevel Explicit Content Level} of this {@link net.dv8tion.jda.core.entities.Guild Guild}.
+     * More information can be found {@link net.dv8tion.jda.core.managers.GuildManagerUpdatable#getExplicitContentLevelField() here}!
+     *
+     * <p>For information on possible {@link net.dv8tion.jda.core.requests.ErrorResponse ErrorResponses}
+     * by the returned {@link net.dv8tion.jda.core.requests.RestAction RestAction} see {@link GuildManagerUpdatable#update() #update()}
+     *
+     * @param  level
+     *         The new MFA Level for this {@link net.dv8tion.jda.core.entities.Guild Guild}
+     *
+     * @throws java.lang.IllegalArgumentException
+     *         If the provided level is {@code null} or {@link net.dv8tion.jda.core.entities.Guild.ExplicitContentLevel#UNKNOWN UNKNOWN}
+     *
+     * @return {@link net.dv8tion.jda.core.requests.RestAction RestAction}
+     *         <br>Update RestAction from {@link GuildManagerUpdatable#update() #update()}
+     *
+     * @see    net.dv8tion.jda.core.managers.GuildManagerUpdatable#getRequiredMFALevelField()
+     * @see    net.dv8tion.jda.core.managers.GuildManagerUpdatable#update()
+     */
+    public RestAction<Void> setExplicitContentLevel(Guild.ExplicitContentLevel level)
+    {
+        return updatable.getExplicitContentLevelField().setValue(level).update();
     }
 }
