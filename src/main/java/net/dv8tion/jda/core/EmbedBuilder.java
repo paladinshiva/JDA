@@ -15,6 +15,7 @@
  */
 package net.dv8tion.jda.core;
 
+import net.dv8tion.jda.core.entities.EmbedType;
 import net.dv8tion.jda.core.entities.MessageEmbed;
 import net.dv8tion.jda.core.entities.impl.MessageEmbedImpl;
 import org.apache.commons.lang3.StringUtils;
@@ -101,17 +102,9 @@ public class EmbedBuilder
         if (description.length() > MessageEmbed.TEXT_MAX_LENGTH)
             throw new IllegalStateException(String.format("Description is longer than %d! Please limit your input!", MessageEmbed.TEXT_MAX_LENGTH));
         final String description = this.description.length() < 1 ? null : this.description.toString();
-        
-        return new MessageEmbedImpl().setTitle(title)
-                .setUrl(url)
-                .setDescription(description)
-                .setTimestamp(timestamp)
-                .setColor(color)
-                .setThumbnail(thumbnail)
-                .setAuthor(author)
-                .setFooter(footer)
-                .setImage(image)
-                .setFields(fields);
+
+        return new MessageEmbedImpl(url, title, description, EmbedType.RICH, timestamp,
+                color, thumbnail, null, author, null, footer, image, fields);
     }
     
     /**

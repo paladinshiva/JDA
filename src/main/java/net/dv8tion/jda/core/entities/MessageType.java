@@ -42,14 +42,19 @@ public enum MessageType
     CALL(3),
 
     /**
-     * Specialized message used for Groups as a System-Message showing that the icon of the Group was changed.
-     */
-    CHANNEL_ICON_CHANGE(4),
-
-    /**
      * Specialized message used for Groups as a System-Message showing that the name of the Group was changed.
      */
-    CHANNEL_NAME_CHANGE(5),
+    CHANNEL_NAME_CHANGE(4),
+
+    /**
+     * Specialized message used for Groups as a System-Message showing that the icon of the Group was changed.
+     */
+    CHANNEL_ICON_CHANGE(5),
+
+    /**
+     * Specialized message used in MessageChannels as a System-Message to announce new pins
+     */
+    PIN_ADD(6),
 
     /**
      * Unknown MessageType.

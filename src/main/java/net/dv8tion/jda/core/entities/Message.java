@@ -32,6 +32,7 @@ import java.nio.file.Paths;
 import java.time.OffsetDateTime;
 import java.util.Formattable;
 import java.util.List;
+import java.util.regex.Pattern;
 
 /**
  * Represents a Text message received from Discord.
@@ -42,12 +43,12 @@ import java.util.List;
  * such as used by {@link String#format(String, Object...) String.format(String, Object...)}
  * or {@link java.io.PrintStream#printf(String, Object...) PrintStream.printf(String, Object...)}.
  *
- * <p>This will use {@link #getContent()} rather than {@link Object#toString()}!
+ * <p>This will use {@link #getContentDisplay()} rather than {@link Object#toString()}!
  * <br>Supported Features:
  * <ul>
  *     <li><b>Alternative</b>
- *     <br>   - Using {@link #getRawContent()}
- *              (Example: {@code %#s} - uses {@link #getContent()})</li>
+ *     <br>   - Using {@link #getContentRaw()}
+ *              (Example: {@code %#s} - uses {@link #getContentDisplay()})</li>
  *
  *     <li><b>Width/Left-Justification</b>
  *     <br>   - Ensures the size of a format
@@ -63,6 +64,8 @@ import java.util.List;
  */
 public interface Message extends ISnowflake, Formattable
 {
+    Pattern INVITE_PATTERN = Pattern.compile("(?:https?://)?discord(?:app\\.com/invite|\\.gg)/(\\S+)", Pattern.CASE_INSENSITIVE);
+
     /**
      * A immutable list of all mentioned users. if no user was mentioned, this list is empty.
      * <br>In {@link net.dv8tion.jda.core.entities.PrivateChannel PrivateChannel's}, this always returns an empty List
@@ -70,16 +73,6 @@ public interface Message extends ISnowflake, Formattable
      * @return immutable list of mentioned users
      */
     List<User> getMentionedUsers();
-
-    /**
-     * Checks if given user was mentioned in this message in any way (@User, @everyone, @here).
-     *
-     * @param  user
-     *         The user to check on.
-     *
-     * @return True if the given user was mentioned in this message.
-     */
-    boolean isMentioned(User user);
 
     /**
      * A immutable list of all mentioned {@link net.dv8tion.jda.core.entities.TextChannel TextChannels}. If none were mentioned, this list is empty.
@@ -99,6 +92,24 @@ public interface Message extends ISnowflake, Formattable
      */
     List<Role> getMentionedRoles();
 
+    List<Member> getMentionedMembers(Guild guild);
+    List<Member> getMentionedMembers();
+
+    List<IMentionable> getMentions(MentionType... types);
+
+    /**
+     * Checks if given user was mentioned in this message in any way (@User, @everyone, @here).
+     *
+     * @param  mentionable
+     *         The mentionable entity to check on.
+     * @param  types
+     *         The types to include when checking whether this type was mentioned.
+     *         This will be used with {@link #getMentions(Message.MentionType...) getMentions(MentionType...)}
+     *
+     * @return True if the given user was mentioned in this message.
+     */
+    boolean isMentioned(IMentionable mentionable, MentionType... types);
+
     /**
      * Indicates if this Message mentions everyone using @everyone or @here.
      * In {@link net.dv8tion.jda.core.entities.PrivateChannel PrivateChannel's}, this always returns false.
@@ -106,6 +117,8 @@ public interface Message extends ISnowflake, Formattable
      * @return True if message is mentioning everyone
      */
     boolean mentionsEveryone();
+
+    boolean mentionsType(MentionType... types);
 
     /**
      * Returns whether or not this Message has been edited before.
@@ -153,30 +166,102 @@ public interface Message extends ISnowflake, Formattable
      * <br>{@link net.dv8tion.jda.core.entities.Role Roles} to their @RoleName format
      * <br>{@link net.dv8tion.jda.core.entities.Emote Emotes} (not emojis!) to their {@code :name:} format.
      *
-     * <p>If you want the actual Content (mentions as {@literal <@id>}), use {@link #getRawContent()} instead
+     * <p>If you want the actual Content (mentions as {@literal <@id>}), use {@link #getContentRaw()} instead
      *
      * @return The textual content of the message with mentions resolved to be visually like the Discord client.
      */
-    String getContent();
+    String getContentDisplay();
+
+    /**
+     * The textual content of this message in the format that would be shown to the Discord client. All
+     * {@link net.dv8tion.jda.core.entities.IMentionable IMentionable} entities will be resolved to the format
+     * shown by the Discord client instead of the {@literal <id>} format.
+     *
+     * <p>This includes resolving:
+     * <br>{@link net.dv8tion.jda.core.entities.User Users} / {@link net.dv8tion.jda.core.entities.Member Members}
+     * to their @Username/@Nickname format,
+     * <br>{@link net.dv8tion.jda.core.entities.TextChannel TextChannels} to their #ChannelName format,
+     * <br>{@link net.dv8tion.jda.core.entities.Role Roles} to their @RoleName format
+     * <br>{@link net.dv8tion.jda.core.entities.Emote Emotes} (not emojis!) to their {@code :name:} format.
+     *
+     * <p>If you want the actual Content (mentions as {@literal <@id>}), use {@link #getContentRaw()} instead
+     *
+     * @return Output of {@link #getContentDisplay()}
+     *
+     * @deprecated
+     *         You may use {@link #getContentDisplay()} instead.
+     *         <br>This method will be removed due to ambiguous meanings and major confusion for newer users.
+     */
+    @Deprecated
+    default String getContent()
+    {
+        return getContentDisplay();
+    }
 
     /**
      * The raw textual content of this message. Does not resolve {@link net.dv8tion.jda.core.entities.IMentionable IMentionable}
-     * entities like {@link #getContent()} does. This means that this is the completely raw textual content of the message
+     * entities like {@link #getContentDisplay()} does. This means that this is the completely raw textual content of the message
      * received from Discord and can contain mentions specified by
      * <a href="https://discordapp.com/developers/docs/resources/channel#message-formatting" target="_blank">Discord's Message Formatting</a>.
      *
      * @return The raw textual content of the message, containing unresolved Discord message formatting.
      */
-    String getRawContent();
+    String getContentRaw();
 
     /**
-     * Gets the textual content of this message using {@link #getContent()} and then strips it of all markdown characters
+     * The raw textual content of this message. Does not resolve {@link net.dv8tion.jda.core.entities.IMentionable IMentionable}
+     * entities like {@link #getContentDisplay()} does. This means that this is the completely raw textual content of the message
+     * received from Discord and can contain mentions specified by
+     * <a href="https://discordapp.com/developers/docs/resources/channel#message-formatting" target="_blank">Discord's Message Formatting</a>.
+     *
+     * @return The raw textual content of the message, containing unresolved Discord message formatting.
+     *
+     * @deprecated
+     *         You may use {@link #getContentRaw()} instead.
+     *         <br>This method will be removed due to ambiguous meanings and major confusion for newer users.
+     */
+    @Deprecated
+    default String getRawContent()
+    {
+        return getContentRaw();
+    }
+
+    /**
+     * Gets the textual content of this message using {@link #getContentDisplay()} and then strips it of all markdown characters
      * like {@literal *, **, __, ~~} that provide text formatting. Any characters that match these but are not being used
      * for formatting are escaped to prevent possible formatting.
      *
-     * @return The textual content from {@link #getContent()} with all text formatting characters removed or escaped.
+     * @return The textual content from {@link #getContentDisplay()} with all text formatting characters removed or escaped.
      */
-    String getStrippedContent();
+    String getContentStripped();
+
+    /**
+     * Gets the textual content of this message using {@link #getContentDisplay()} and then strips it of all markdown characters
+     * like {@literal *, **, __, ~~} that provide text formatting. Any characters that match these but are not being used
+     * for formatting are escaped to prevent possible formatting.
+     *
+     * @return The textual content from {@link #getContentDisplay()} with all text formatting characters removed or escaped.
+     *
+     * @deprecated
+     *         You may use {@link #getContentStripped()} instead.
+     *         <br>This method will be removed due to ambiguous meanings and major confusion for newer users.
+     */
+    @Deprecated
+    default String getStrippedContent()
+    {
+        return getContentStripped();
+    }
+
+    List<String> getInvites();
+
+    /**
+     * Validation <a href="https://en.wikipedia.org/wiki/Cryptographic_nonce" target="_blank" >nonce</a> for this Message
+     * <br>This can be used to validate that a Message was properly sent to the Discord Service.
+     * <br>To set a nonce before sending you may use {@link net.dv8tion.jda.core.MessageBuilder#setNonce(String) MessageBuilder.setNonce(String)}!
+     *
+     * @return The validation nonce
+     */
+    String getNonce();
 
     /**
      * Used to determine if this Message was received from a {@link net.dv8tion.jda.core.entities.MessageChannel MessageChannel}
@@ -343,7 +428,7 @@ public interface Message extends ISnowflake, Formattable
      * @return {@link net.dv8tion.jda.core.requests.RestAction RestAction} - Type: {@link net.dv8tion.jda.core.entities.Message Message}
      *     <br>The {@link net.dv8tion.jda.core.entities.Message Message} with the updated content
      */
-    RestAction<Message> editMessage(String newContent);
+    RestAction<Message> editMessage(CharSequence newContent);
 
     /**
      * Edits this Message's content to the provided {@link net.dv8tion.jda.core.entities.MessageEmbed MessageEmbed}.
@@ -710,18 +795,41 @@ public interface Message extends ISnowflake, Formattable
     /**
      * Represents a {@link net.dv8tion.jda.core.entities.Message Message} file attachment.
      */
-    class Attachment
+    enum MentionType
     {
-        private final String id;
+        USER("<@!?(\\d+)>"),
+        ROLE("<@&(\\d+)>"),
+        CHANNEL("<#(\\d+)>"),
+        EMOTE("<:([a-zA-Z0-9_]+):([0-9]+)>"),
+        HERE("@here"),
+        EVERYONE("@everyone");
+
+        private final Pattern pattern;
+
+        MentionType(String regex)
+        {
+            this.pattern = Pattern.compile(regex);
+        }
+
+        public Pattern getPattern()
+        {
+            return pattern;
+        }
+    }
+
+    class Attachment implements ISnowflake
+    {
+        private final long id;
         private final String url;
         private final String proxyUrl;
         private final String fileName;
         private final int size;
         private final int height;
         private final int width;
+
         private final JDA jda;
 
-        public Attachment(String id, String url, String proxyUrl, String fileName, int size, int height, int width, JDA jda)
+        public Attachment(long id, String url, String proxyUrl, String fileName, int size, int height, int width, JDA jda)
         {
             this.id = id;
             this.url = url;
@@ -733,12 +841,8 @@ public interface Message extends ISnowflake, Formattable
             this.jda = jda;
         }
 
-        /**
-         * The id of the attachment. This is not the id of the message that the attachment was attached to.
-         *
-         * @return Non-null String containing the Attachment ID.
-         */
-        public String getId()
+        @Override
+        public long getIdLong()
         {
             return id;
         }
@@ -850,7 +954,6 @@ public interface Message extends ISnowflake, Formattable
         {
             return width;
         }
-
         /**
          * Whether or not this attachment is an Image.
          * <br>Based on the values of getHeight and getWidth being larger than zero.
@@ -861,5 +964,6 @@ public interface Message extends ISnowflake, Formattable
         {
             return height > 0 && width > 0;
         }
+
     }
 }

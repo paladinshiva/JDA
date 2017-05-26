@@ -177,7 +177,7 @@ public interface MessageChannel extends ISnowflake, Formattable
      *
      * @see net.dv8tion.jda.core.MessageBuilder
      */
-    default RestAction<Message> sendMessage(String text)
+    default RestAction<Message> sendMessage(CharSequence text)
     {
         Args.notEmpty(text, "Provided text for message");
         Args.check(text.length() <= 2000, "Provided text for message must be less than 2000 characters in length");
@@ -870,7 +870,7 @@ public interface MessageChannel extends ISnowflake, Formattable
      * {
      *     for (Message message : channel.<u>getIterableHistory()</u>)
      *     {
-     *         if (message.getRawContent().equals(content))
+     *         if (message.getContentRaw().equals(content))
      *             return true;
      *         if (checkAmount--{@literal <=} 0) break;
      *     }
@@ -1734,7 +1734,7 @@ public interface MessageChannel extends ISnowflake, Formattable
      * @return {@link net.dv8tion.jda.core.requests.RestAction RestAction} - Type: {@link net.dv8tion.jda.core.entities.Message}
      *         <br>The modified Message after it has been sent to Discord.
      */
-    default RestAction<Message> editMessageById(String messageId, String newContent)
+    default RestAction<Message> editMessageById(String messageId, CharSequence newContent)
     {
         Args.notEmpty(newContent, "Provided message content");
         Args.check(newContent.length() <= 2000, "Provided newContent length must be 2000 or less characters.");

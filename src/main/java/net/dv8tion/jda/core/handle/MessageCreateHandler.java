@@ -15,25 +15,32 @@
  */
 package net.dv8tion.jda.core.handle;
 
+import net.dv8tion.jda.client.entities.Group;
 import net.dv8tion.jda.client.entities.impl.GroupImpl;
+import net.dv8tion.jda.client.events.message.group.GroupCallMessageEvent;
+import net.dv8tion.jda.client.events.message.group.GroupIconMessageEvent;
 import net.dv8tion.jda.client.events.message.group.GroupMessageReceivedEvent;
-import net.dv8tion.jda.core.entities.EntityBuilder;
-import net.dv8tion.jda.core.entities.Message;
-import net.dv8tion.jda.core.entities.MessageType;
+import net.dv8tion.jda.client.events.message.group.GroupNameMessageEvent;
+import net.dv8tion.jda.client.events.message.group.recipient.GroupRecipientAddMessageEvent;
+import net.dv8tion.jda.client.events.message.group.recipient.GroupRecipientRemoveMessageEvent;
+import net.dv8tion.jda.core.AccountType;
+import net.dv8tion.jda.core.entities.*;
 import net.dv8tion.jda.core.entities.impl.JDAImpl;
 import net.dv8tion.jda.core.entities.impl.PrivateChannelImpl;
 import net.dv8tion.jda.core.entities.impl.TextChannelImpl;
+import net.dv8tion.jda.core.entities.impl.message.*;
+import net.dv8tion.jda.core.events.message.CallMessageEvent;
 import net.dv8tion.jda.core.events.message.MessageReceivedEvent;
+import net.dv8tion.jda.core.events.message.PinMessageEvent;
 import net.dv8tion.jda.core.events.message.guild.GuildMessageReceivedEvent;
+import net.dv8tion.jda.core.events.message.priv.PrivateCallMessageEvent;
 import net.dv8tion.jda.core.events.message.priv.PrivateMessageReceivedEvent;
-import net.dv8tion.jda.core.requests.GuildLock;
+import net.dv8tion.jda.core.hooks.IEventManager;
 import net.dv8tion.jda.core.requests.WebSocketClient;
 import org.json.JSONObject;
 
 public class MessageCreateHandler extends SocketHandler
 {
-    //private static final Pattern invitePattern = Pattern.compile("\\bhttps://(?:www\\.)?discord(?:\\.gg|app\\.com/invite)/([a-zA-Z0-9-]+)\\b");
-
     public MessageCreateHandler(JDAImpl api)
     {
         super(api);
@@ -48,6 +55,15 @@ public class MessageCreateHandler extends SocketHandler
         {
             case DEFAULT:
                 return handleDefaultMessage(content);
+            case PIN_ADD:
+                return handlePinSystemMessage(content);
+            case CALL:
+                return handleCallSystemMessage(content);
+            case CHANNEL_NAME_CHANGE:
+            case CHANNEL_ICON_CHANGE:
+            case RECIPIENT_ADD:
+            case RECIPIENT_REMOVE:
+                return handleGroupSystemMessage(content, type);
             default:
                 WebSocketClient.LOG.debug("JDA received a message of unknown type. Type: " + type + "  JSON: " + content);
         }
@@ -132,7 +148,7 @@ public class MessageCreateHandler extends SocketHandler
                         message));
 
 //        //searching for invites
-//        Matcher matcher = invitePattern.matcher(message.getContent());
+//        Matcher matcher = invitePattern.matcher(message.getContentDisplay());
 //        while (matcher.find())
 //        {
 //            InviteUtil.Invite invite = InviteUtil.resolve(matcher.group(1));
@@ -144,6 +160,164 @@ public class MessageCreateHandler extends SocketHandler
 //                                message,invite));
 //            }
 //        }
+        return null;
+    }
+
+    private User getUser(JSONObject author)
+    {
+        long authorId = author.getLong("id");
+        User user = api.getUserById(authorId);
+        if (user == null)
+        {
+            api.getEventCache().cache(EventCache.Type.USER, authorId, () -> handle(responseNumber, allContent));
+            EventCache.LOG.debug("Received a message for a user that JDA does not currently have cached");
+        }
+        return user;
+    }
+
+    private Long handleCallSystemMessage(JSONObject content)
+    {
+        long id = content.getLong("id");
+        long channelId = content.getLong("channel_id");
+        JSONObject author = content.getJSONObject("author");
+        String msgContent = content.isNull("content") ? "" : content.getString("content");
+
+        User user = getUser(author);
+        if (user == null)
+            return null;
+        MessageChannel channel = api.getPrivateChannelById(channelId);
+        if (channel == null)
+            channel = api.getFakePrivateChannelMap().get(channelId);
+        if (channel == null && api.getAccountType() == AccountType.CLIENT)
+            channel = api.asClient().getGroupById(channelId);
+        if (channel == null)
+        {
+            api.getEventCache().cache(EventCache.Type.CHANNEL, channelId,
+                    () -> handle(responseNumber, allContent));
+            EventCache.LOG.debug("Received CallMessage for a channel that is not yet cached. messageId: " + id + " channelId: " + channelId);
+            return null;
+        }
+        CallMessage message = new CallMessage(user, channel, id, msgContent);
+        final IEventManager manager = api.getEventManager();
+        switch (channel.getType())
+        {
+            case GROUP:
+                manager.handle(
+                    new GroupCallMessageEvent(
+                            api, responseNumber,
+                            message, (Group) channel));
+                break;
+            case PRIVATE:
+                manager.handle(
+                    new PrivateCallMessageEvent(
+                            api, responseNumber,
+                            message, (PrivateChannel) channel));
+            // default:
+        }
+        manager.handle(
+            new CallMessageEvent(
+                    api, responseNumber,
+                    message, channel));
+        return null;
+    }
+
+    private Long handlePinSystemMessage(JSONObject content)
+    {
+        long id = content.getLong("id");
+        long channelId = content.getLong("channel_id");
+        JSONObject author = content.getJSONObject("author");
+        String msgContent = content.isNull("content") ? "" : content.getString("content");
+
+        User user = getUser(author);
+        if (user == null)
+            return null;
+        MessageChannel channel = api.getTextChannelById(channelId);
+        if (channel == null)
+            channel = api.getPrivateChannelById(channelId);
+        if (channel == null)
+            channel = api.getFakePrivateChannelMap().get(channelId);
+        if (channel == null && api.getAccountType() == AccountType.CLIENT)
+                channel = api.asClient().getGroupById(channelId);
+        if (channel == null)
+        {
+            api.getEventCache().cache(EventCache.Type.CHANNEL, channelId,
+                    () -> handle(responseNumber, allContent));
+            EventCache.LOG.debug("Received PinMessage for a channel that is not yet cached. messageId: " + id + " channelId: " + channelId);
+            return null;
+        }
+
+        PinMessage message = new PinMessage(user, channel, id, msgContent);
+        api.getEventManager().handle(
+                new PinMessageEvent(
+                        api, responseNumber,
+                        message, channel));
+        return null;
+    }
+
+    private Long handleGroupSystemMessage(JSONObject content, MessageType type)
+    {
+        long id = content.getLong("id");
+        long channelId = content.getLong("channel_id");
+        if (api.getAccountType() != AccountType.CLIENT)
+        {
+            WebSocketClient.LOG.warn("Ignoring SystemMessage from Group with id: " + channelId + " on non-client account!");
+            return null;
+        }
+
+        JSONObject author = content.getJSONObject("author");
+        User user = getUser(author);
+        if (user == null)
+            return null;
+        boolean add = false;
+
+        Group group = api.asClient().getGroupById(channelId);
+        String msgContent = content.isNull("content") ? "" : content.getString("content");
+
+        final IEventManager manager = api.getEventManager();
+        switch (type)
+        {
+            case RECIPIENT_ADD:
+                add = true; // we fall through on purpose
+            case RECIPIENT_REMOVE:
+            {
+                GroupRecipientMessage message = new GroupRecipientMessage(user, group, id, msgContent, add);
+                if (add)
+                {
+                    manager.handle(
+                        new GroupRecipientAddMessageEvent(
+                                api, responseNumber,
+                                message, group));
+                }
+                else
+                {
+                    manager.handle(
+                        new GroupRecipientRemoveMessageEvent(
+                                api, responseNumber,
+                                message, group));
+                }
+                break;
+            }
+            case CHANNEL_ICON_CHANGE:
+            {
+                GroupIconMessage message = new GroupIconMessage(user, group, id, msgContent);
+                manager.handle(
+                    new GroupIconMessageEvent(
+                            api, responseNumber,
+                            message, group));
+                break;
+            }
+            case CHANNEL_NAME_CHANGE:
+            {
+                GroupNameMessage message = new GroupNameMessage(user, group, id, msgContent);
+                manager.handle(
+                    new GroupNameMessageEvent(
+                            api, responseNumber,
+                            message, group));
+                break;
+            }
+            default:
+                WebSocketClient.LOG.debug("Received message type that has no handling specified " + type);
+        }
         return null;
     }
 }

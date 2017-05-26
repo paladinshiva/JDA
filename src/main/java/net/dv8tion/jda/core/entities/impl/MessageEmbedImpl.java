@@ -28,19 +28,44 @@ import java.util.List;
 
 public class MessageEmbedImpl implements MessageEmbed
 {
-    private String url;
-    private String title;
-    private String description;
-    private EmbedType type;
-    private OffsetDateTime timestamp;
-    private Color color;
-    private Thumbnail thumbnail;
-    private Provider siteProvider;
-    private AuthorInfo author;
-    private VideoInfo videoInfo;
-    private Footer footer;
-    private ImageInfo image;
-    private List<Field> fields;
+    private final Object mutex = new Object();
+
+    private final String url;
+    private final String title;
+    private final String description;
+    private final EmbedType type;
+    private final OffsetDateTime timestamp;
+    private final Color color;
+    private final Thumbnail thumbnail;
+    private final Provider siteProvider;
+    private final AuthorInfo author;
+    private final VideoInfo videoInfo;
+    private final Footer footer;
+    private final ImageInfo image;
+    private final List<Field> fields;
+
+    private volatile int length = -1;
+
+    public MessageEmbedImpl(
+        String url, String title, String description, EmbedType type, OffsetDateTime timestamp,
+        Color color, Thumbnail thumbnail, Provider siteProvider, AuthorInfo author,
+        VideoInfo videoInfo, Footer footer, ImageInfo image, List<Field> fields)
+    {
+        this.url = url;
+        this.title = title;
+        this.description = description;
+        this.type = type;
+        this.timestamp = timestamp;
+        this.color = color;
+        this.thumbnail = thumbnail;
+        this.siteProvider = siteProvider;
+        this.author = author;
+        this.videoInfo = videoInfo;
+        this.footer = footer;
+        this.image = image;
+        this.fields = fields != null && !fields.isEmpty()
+                ? Collections.unmodifiableList(fields) : Collections.emptyList();
+    }
 
     @Override
     public String getUrl()
@@ -102,7 +127,7 @@ public class MessageEmbedImpl implements MessageEmbed
 
     @Override
     public List<Field> getFields() {
-        return Collections.unmodifiableList(fields);
+        return fields;
     }
     
     @Override
@@ -118,126 +143,32 @@ public class MessageEmbedImpl implements MessageEmbed
     @Override
     public int getLength()
     {
-        int len = 0;
-
-        if (title != null)
-            len += title.length();
-        if (description != null)
-            len += description.length();
-        if (author != null)
-            len += author.getName().length();
-        if (footer != null)
-            len += footer.getText().length();
-        if (fields != null)
+        if (length > -1)
+            return length;
+        synchronized (mutex)
         {
-            for (Field f : fields)
+            if (length > -1)
+                return length;
+            length = 0;
+
+            if (title != null)
+                length += title.length();
+            if (description != null)
+                length += description.length();
+            if (author != null)
+                length += author.getName().length();
+            if (footer != null)
+                length += footer.getText().length();
+            if (fields != null)
             {
-                len += f.getName().length() + f.getValue().length();
+                for (Field f : fields)
+                    length += f.getName().length() + f.getValue().length();
             }
+
+            return length;
         }
-
-        return len;
     }
 
-    public MessageEmbedImpl setUrl(String url)
-    {
-        this.url = url;
-        return this;
-    }
-
-    public MessageEmbedImpl setTitle(String title)
-    {
-        this.title = title;
-        return this;
-    }
-
-    public MessageEmbedImpl setDescription(String description)
-    {
-        this.description = description;
-        return this;
-    }
-
-    public MessageEmbedImpl setType(EmbedType type)
-    {
-        this.type = type;
-        return this;
-    }
-
-    public MessageEmbedImpl setThumbnail(Thumbnail thumbnail)
-    {
-        this.thumbnail = thumbnail;
-        return this;
-    }
-
-    public MessageEmbedImpl setSiteProvider(Provider siteProvider)
-    {
-        this.siteProvider = siteProvider;
-        return this;
-    }
-
-    public MessageEmbedImpl setAuthor(AuthorInfo author)
-    {
-        this.author = author;
-        return this;
-    }
-
-    public MessageEmbedImpl setVideoInfo(VideoInfo videoInfo)
-    {
-        this.videoInfo = videoInfo;
-        return this;
-    }
-
-    public MessageEmbedImpl setFooter(Footer footer)
-    {
-        this.footer = footer;
-        return this;
-    }
-    
-    public MessageEmbedImpl setImage(ImageInfo image)
-    {
-        this.image = image;
-        return this;
-    }
-    
-    public MessageEmbedImpl setFields(List<Field> fields)
-    {
-        this.fields = fields;
-        return this;
-    }
-    
-    public MessageEmbedImpl setColor(Color color)
-    {
-        this.color = color;
-        return this;
-    }
-    
-    public MessageEmbedImpl setTimestamp(OffsetDateTime timestamp)
-    {
-        this.timestamp = timestamp;
-        return this;
-    }
-    
-    @Override
-    public boolean equals(Object o)
-    {
-        if (!(o instanceof MessageEmbed))
-            return false;
-        MessageEmbed oMsg = (MessageEmbed) o;
-        return this == oMsg;
-    }
-
-    @Override
-    public int hashCode()
-    {
-        return getUrl().hashCode();
-    }
-
-    @Override
-    public String toString()
-    {
-        return "EmbedMessage";
-    }
-    
     public JSONObject toJSONObject()
     {
         JSONObject obj = new JSONObject();
@@ -289,11 +220,14 @@ public class MessageEmbedImpl implements MessageEmbed
         if (!fields.isEmpty())
         {
             JSONArray fieldsArray = new JSONArray();
-            fields.stream().forEach(field -> 
-                fieldsArray.put(new JSONObject()
+            for (Field field : fields)
+            {
+                fieldsArray
+                    .put(new JSONObject()
                     .put("name", field.getName())
                     .put("value", field.getValue())
-                    .put("inline", field.isInline())));
+                    .put("inline", field.isInline()));
+            }
             obj.put("fields", fieldsArray);
         }
         return obj;

@@ -230,7 +230,7 @@ public class TextChannelImpl extends AbstractChannelImpl<TextChannelImpl> implem
         checkVerification();
         checkPermission(Permission.MESSAGE_READ);
         checkPermission(Permission.MESSAGE_WRITE);
-        if (msg.getRawContent().isEmpty() && !msg.getEmbeds().isEmpty())
+        if (msg.getContentRaw().isEmpty() && !msg.getEmbeds().isEmpty())
             checkPermission(Permission.MESSAGE_EMBED_LINKS);
 
         //Call MessageChannel's default
@@ -368,7 +368,7 @@ public class TextChannelImpl extends AbstractChannelImpl<TextChannelImpl> implem
         //checkVerification(); no verification needed to edit a message
         checkPermission(Permission.MESSAGE_READ);
         checkPermission(Permission.MESSAGE_WRITE);
-        if (newContent.getRawContent().isEmpty() && !newContent.getEmbeds().isEmpty())
+        if (newContent.getContentRaw().isEmpty() && !newContent.getEmbeds().isEmpty())
             checkPermission(Permission.MESSAGE_EMBED_LINKS);
 
         //Call MessageChannel's default
