@@ -22,6 +22,7 @@ import org.apache.http.util.Args;
 import java.awt.Color;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Represents an embed displayed by Discord.
@@ -256,6 +257,18 @@ public interface MessageEmbed
         {
             return height;
         }
+
+        @Override
+        public boolean equals(Object obj)
+        {
+            if (!(obj instanceof Thumbnail))
+                return false;
+            Thumbnail thumbnail = (Thumbnail) obj;
+            return thumbnail == this || (Objects.equals(thumbnail.url, url)
+                && Objects.equals(thumbnail.proxyUrl, proxyUrl)
+                && thumbnail.width == width
+                && thumbnail.height == height);
+        }
     }
 
     /**
@@ -293,6 +306,16 @@ public interface MessageEmbed
         public String getUrl()
         {
             return url;
+        }
+
+        @Override
+        public boolean equals(Object obj)
+        {
+            if (!(obj instanceof Provider))
+                return false;
+            Provider provider = (Provider) obj;
+            return provider == this || (Objects.equals(provider.name, name)
+                && Objects.equals(provider.url, url));
         }
     }
 
@@ -349,6 +372,17 @@ public interface MessageEmbed
         public int getHeight()
         {
             return height;
+        }
+
+        @Override
+        public boolean equals(Object obj)
+        {
+            if (!(obj instanceof VideoInfo))
+                return false;
+            VideoInfo video = (VideoInfo) obj;
+            return video == this || (Objects.equals(video.url, url)
+                && video.width == width
+                && video.height == height);
         }
     }
     
@@ -409,6 +443,18 @@ public interface MessageEmbed
         public int getHeight()
         {
             return height;
+        }
+
+        @Override
+        public boolean equals(Object obj)
+        {
+            if (!(obj instanceof ImageInfo))
+                return false;
+            ImageInfo image = (ImageInfo) obj;
+            return image == this || (Objects.equals(image.url, url)
+                && Objects.equals(image.proxyUrl, proxyUrl)
+                && image.width == width
+                && image.height == height);
         }
     }
     
@@ -472,6 +518,18 @@ public interface MessageEmbed
         {
             return proxyIconUrl;
         }
+
+        @Override
+        public boolean equals(Object obj)
+        {
+            if (!(obj instanceof AuthorInfo))
+                return false;
+            AuthorInfo author = (AuthorInfo) obj;
+            return author == this || (Objects.equals(author.name, name)
+                && Objects.equals(author.url, url)
+                && Objects.equals(author.iconUrl, iconUrl)
+                && Objects.equals(author.proxyIconUrl, proxyIconUrl));
+        }
     }
     
     /**
@@ -519,6 +577,17 @@ public interface MessageEmbed
         public String getProxyIconUrl()
         {
             return proxyIconUrl;
+        }
+
+        @Override
+        public boolean equals(Object obj)
+        {
+            if (!(obj instanceof Footer))
+                return false;
+            Footer footer = (Footer) obj;
+            return footer == this || (Objects.equals(footer.text, text)
+                && Objects.equals(footer.iconUrl, iconUrl)
+                && Objects.equals(footer.proxyIconUrl, proxyIconUrl));
         }
     }
     
@@ -598,6 +667,17 @@ public interface MessageEmbed
         public boolean isInline()
         {
             return inline;
+        }
+
+        @Override
+        public boolean equals(Object obj)
+        {
+            if (!(obj instanceof Field))
+                return false;
+            final Field field = (Field) obj;
+            return field == this || (field.inline == inline
+                && Objects.equals(field.name, name)
+                && Objects.equals(field.value, value));
         }
     }
 }

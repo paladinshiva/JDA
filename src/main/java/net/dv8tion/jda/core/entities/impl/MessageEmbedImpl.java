@@ -23,8 +23,7 @@ import org.json.JSONObject;
 import java.awt.Color;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
 public class MessageEmbedImpl implements MessageEmbed
 {
@@ -167,6 +166,52 @@ public class MessageEmbedImpl implements MessageEmbed
 
             return length;
         }
+    }
+
+    @Override
+    public boolean equals(Object obj)
+    {
+        if (!(obj instanceof MessageEmbedImpl))
+            return false;
+        if (obj == this)
+            return true;
+        MessageEmbedImpl other = (MessageEmbedImpl) obj;
+        return Objects.equals(url, other.url)
+            && Objects.equals(title, other.title)
+            && Objects.equals(description, other.description)
+            && Objects.equals(type, other.type)
+            && Objects.equals(thumbnail, other.thumbnail)
+            && Objects.equals(siteProvider, other.siteProvider)
+            && Objects.equals(author, other.author)
+            && Objects.equals(videoInfo, other.videoInfo)
+            && Objects.equals(footer, other.footer)
+            && Objects.equals(image, other.image)
+            && Objects.equals(color, other.color)
+            && Objects.equals(timestamp, other.timestamp)
+            && deepEquals(fields, other.fields);
+    }
+
+    private static <T> boolean deepEquals(Collection<T> first, Collection<T> second)
+    {
+        if (first != null)
+        {
+            if (second == null)
+                return false;
+            if (first.size() != second.size())
+                return false;
+            for (Iterator<T> itFirst = first.iterator(), itSecond = second.iterator(); itFirst.hasNext(); )
+            {
+                T elementFirst = itFirst.next();
+                T elementSecond = itSecond.next();
+                if (!Objects.equals(elementFirst, elementSecond))
+                    return false;
+            }
+        }
+        else if (second != null)
+        {
+            return false;
+        }
+        return true;
     }
 
     public JSONObject toJSONObject()
