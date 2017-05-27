@@ -100,6 +100,7 @@ public class MessageCreateHandler extends SocketHandler
             }
         }
 
+        final IEventManager manager = api.getEventManager();
         switch (message.getChannelType())
         {
             case TEXT:
@@ -110,30 +111,30 @@ public class MessageCreateHandler extends SocketHandler
                     return channel.getGuild().getIdLong();
                 }
                 channel.setLastMessageId(message.getIdLong());
-                api.getEventManager().handle(
-                        new GuildMessageReceivedEvent(
-                                api, responseNumber,
-                                message));
+                manager.handle(
+                    new GuildMessageReceivedEvent(
+                        api, responseNumber,
+                        message));
                 break;
             }
             case PRIVATE:
             {
                 PrivateChannelImpl channel = (PrivateChannelImpl) message.getPrivateChannel();
                 channel.setLastMessageId(message.getIdLong());
-                api.getEventManager().handle(
-                        new PrivateMessageReceivedEvent(
-                                api, responseNumber,
-                                message));
+                manager.handle(
+                    new PrivateMessageReceivedEvent(
+                        api, responseNumber,
+                        message));
                 break;
             }
             case GROUP:
             {
                 GroupImpl channel = (GroupImpl) message.getGroup();
                 channel.setLastMessageId(message.getIdLong());
-                api.getEventManager().handle(
-                        new GroupMessageReceivedEvent(
-                                api, responseNumber,
-                                message));
+                manager.handle(
+                    new GroupMessageReceivedEvent(
+                        api, responseNumber,
+                        message));
                 break;
             }
             default:
@@ -142,24 +143,10 @@ public class MessageCreateHandler extends SocketHandler
         }
 
         //Combo event
-        api.getEventManager().handle(
-                new MessageReceivedEvent(
-                        api, responseNumber,
-                        message));
-
-//        //searching for invites
-//        Matcher matcher = invitePattern.matcher(message.getContentDisplay());
-//        while (matcher.find())
-//        {
-//            InviteUtil.Invite invite = InviteUtil.resolve(matcher.group(1));
-//            if (invite != null)
-//            {
-//                api.getEventManager().handle(
-//                        new InviteReceivedEvent(
-//                                api, responseNumber,
-//                                message,invite));
-//            }
-//        }
+        manager.handle(
+            new MessageReceivedEvent(
+                api, responseNumber,
+                message));
         return null;
     }
 
@@ -167,6 +154,8 @@ public class MessageCreateHandler extends SocketHandler
     {
         long authorId = author.getLong("id");
         User user = api.getUserById(authorId);
+        if (user == null)
+            user = api.getFakeUserMap().get(authorId);
         if (user == null)
         {
             api.getEventCache().cache(EventCache.Type.USER, authorId, () -> handle(responseNumber, allContent));
@@ -248,9 +237,9 @@ public class MessageCreateHandler extends SocketHandler
 
         PinMessage message = new PinMessage(user, channel, id, msgContent);
         api.getEventManager().handle(
-                new PinMessageEvent(
-                        api, responseNumber,
-                        message, channel));
+            new PinMessageEvent(
+                api, responseNumber,
+                message, channel));
         return null;
     }
 
@@ -285,15 +274,15 @@ public class MessageCreateHandler extends SocketHandler
                 {
                     manager.handle(
                         new GroupRecipientAddMessageEvent(
-                                api, responseNumber,
-                                message, group));
+                            api, responseNumber,
+                            message, group));
                 }
                 else
                 {
                     manager.handle(
                         new GroupRecipientRemoveMessageEvent(
-                                api, responseNumber,
-                                message, group));
+                            api, responseNumber,
+                            message, group));
                 }
                 break;
             }
@@ -302,8 +291,8 @@ public class MessageCreateHandler extends SocketHandler
                 GroupIconMessage message = new GroupIconMessage(user, group, id, msgContent);
                 manager.handle(
                     new GroupIconMessageEvent(
-                            api, responseNumber,
-                            message, group));
+                        api, responseNumber,
+                        message, group));
                 break;
             }
             case CHANNEL_NAME_CHANGE:
@@ -311,8 +300,8 @@ public class MessageCreateHandler extends SocketHandler
                 GroupNameMessage message = new GroupNameMessage(user, group, id, msgContent);
                 manager.handle(
                     new GroupNameMessageEvent(
-                            api, responseNumber,
-                            message, group));
+                        api, responseNumber,
+                        message, group));
                 break;
             }
             default:

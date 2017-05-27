@@ -841,7 +841,7 @@ public class EntityBuilder
                 content, nonce, user, editTime, reactions, attachments, embeds);
     }
 
-    private MessageReaction createMessageReaction(MessageChannel chan, long id, JSONObject obj)
+    public MessageReaction createMessageReaction(MessageChannel chan, long id, JSONObject obj)
     {
         JSONObject emoji = obj.getJSONObject("emoji");
         final Long emojiID = emoji.isNull("id") ? null : emoji.getLong("id");
