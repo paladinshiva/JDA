@@ -34,6 +34,7 @@ import net.dv8tion.jda.core.requests.Request;
 import net.dv8tion.jda.core.requests.Response;
 import net.dv8tion.jda.core.requests.RestAction;
 import net.dv8tion.jda.core.requests.Route;
+import net.dv8tion.jda.core.requests.restaction.pagination.AuditLogPaginationAction;
 import net.dv8tion.jda.core.utils.MiscUtil;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.util.Args;
@@ -74,6 +75,7 @@ public class GuildImpl implements Guild
     private VerificationLevel verificationLevel;
     private NotificationLevel defaultNotificationLevel;
     private MFALevel mfaLevel;
+    private ExplicitContentLevel explicitContentLevel;
     private Timeout afkTimeout;
     private boolean available;
     private boolean canSendVerification = false;
@@ -527,6 +529,12 @@ public class GuildImpl implements Guild
     }
 
     @Override
+    public AuditLogPaginationAction getAuditLogs()
+    {
+        return new AuditLogPaginationAction(this);
+    }
+
+    @Override
     public RestAction<Void> leave()
     {
         if (owner.equals(getSelfMember()))
@@ -640,6 +648,12 @@ public class GuildImpl implements Guild
     }
 
     @Override
+    public ExplicitContentLevel getExplicitContentLevel()
+    {
+        return explicitContentLevel;
+    }
+
+    @Override
     public boolean checkVerification()
     {
         if (api.getAccountType() == AccountType.BOT)
@@ -748,6 +762,12 @@ public class GuildImpl implements Guild
     public GuildImpl setRequiredMFALevel(MFALevel level)
     {
         this.mfaLevel = level;
+        return this;
+    }
+
+    public GuildImpl setExplicitContentLevel(ExplicitContentLevel level)
+    {
+        this.explicitContentLevel = level;
         return this;
     }
 

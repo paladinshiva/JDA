@@ -27,8 +27,8 @@ import net.dv8tion.jda.core.exceptions.PermissionException;
 import net.dv8tion.jda.core.managers.fields.GuildField;
 import net.dv8tion.jda.core.requests.Request;
 import net.dv8tion.jda.core.requests.Response;
-import net.dv8tion.jda.core.requests.RestAction;
 import net.dv8tion.jda.core.requests.Route;
+import net.dv8tion.jda.core.requests.restaction.AuditableRestAction;
 import org.apache.http.util.Args;
 import org.json.JSONObject;
 
@@ -60,6 +60,7 @@ public class GuildManagerUpdatable
     protected GuildField<Guild.VerificationLevel> verificationLevel;
     protected GuildField<Guild.NotificationLevel> defaultNotificationLevel;
     protected GuildField<Guild.MFALevel> mfaLevel;
+    protected GuildField<Guild.ExplicitContentLevel> explicitContentLevel;
     protected GuildField<Guild.Timeout> timeout;
 
     /**
@@ -279,7 +280,7 @@ public class GuildManagerUpdatable
 
     /**
      * An {@link net.dv8tion.jda.core.managers.fields.GuildField GuildField}
-     * for the <b><u>{@link net.dv8tion.jda.core.entities.Guild.NotificationLevel Notification Level}</u></b> of the selected {@link net.dv8tion.jda.core.entities.Guild Guild}.
+     * for the <b><u>{@link net.dv8tion.jda.core.entities.Guild.MFALevel MFA Level}</u></b> of the selected {@link net.dv8tion.jda.core.entities.Guild Guild}.
      * <br>The default value is {@link net.dv8tion.jda.core.entities.Guild.MFALevel#NONE NONE}
      *
      * <p>To set the value use {@link net.dv8tion.jda.core.managers.fields.Field#setValue(Object) setValue(Guild.MFALevel)}
@@ -298,6 +299,29 @@ public class GuildManagerUpdatable
     {
         checkAvailable();
         return mfaLevel;
+    }
+
+    /**
+     * An {@link net.dv8tion.jda.core.managers.fields.GuildField GuildField}
+     * for the <b><u>{@link net.dv8tion.jda.core.entities.Guild.ExplicitContentLevel Explicit Content Level}</u></b> of the selected {@link net.dv8tion.jda.core.entities.Guild Guild}.
+     * <br>The default value is {@link net.dv8tion.jda.core.entities.Guild.ExplicitContentLevel#OFF OFF}
+     *
+     * <p>To set the value use {@link net.dv8tion.jda.core.managers.fields.Field#setValue(Object) setValue(Guild.ExplicitContentLevel)}
+     * on the returned {@link net.dv8tion.jda.core.managers.fields.GuildField GuildField} instance.
+     *
+     * <p>A guild explicit content level <b>must not</b> be {@code null} or {@link net.dv8tion.jda.core.entities.Guild.ExplicitContentLevel#UNKNOWN UNKNOWN}!
+     * <br>Otherwise {@link net.dv8tion.jda.core.managers.fields.Field#setValue(Object) Field.setValue(...)} will
+     * throw an {@link IllegalArgumentException IllegalArgumentException}.
+     *
+     * @throws net.dv8tion.jda.core.exceptions.GuildUnavailableException
+     *         If the Guild is temporarily not {@link net.dv8tion.jda.core.entities.Guild#isAvailable() available}
+     *
+     * @return {@link net.dv8tion.jda.core.managers.fields.GuildField GuildField} - Type: {@link net.dv8tion.jda.core.entities.Guild.ExplicitContentLevel Guild.ExplicitContentLevel}
+     */
+    public GuildField<Guild.ExplicitContentLevel> getExplicitContentLevelField()
+    {
+        checkAvailable();
+        return explicitContentLevel;
     }
 
     /**
@@ -342,16 +366,16 @@ public class GuildManagerUpdatable
      * @throws net.dv8tion.jda.core.exceptions.GuildUnavailableException
      *         If the Guild is temporarily not {@link net.dv8tion.jda.core.entities.Guild#isAvailable() available}
      *
-     * @return {@link net.dv8tion.jda.core.requests.RestAction RestAction}
+     * @return {@link net.dv8tion.jda.core.requests.restaction.AuditableRestAction AuditableRestAction}
      *         <br>Applies all changes that have been made in a single api-call.
      */
-    public RestAction<Void> update()
+    public AuditableRestAction<Void> update()
     {
         checkAvailable();
         checkPermission(Permission.MANAGE_SERVER);
 
         if (!needToUpdate())
-            return new RestAction.EmptyRestAction<>(null);
+            return new AuditableRestAction.EmptyRestAction<>(getJDA(), null);
 
         JSONObject body = new JSONObject().put("name", guild.getName());
         if (name.shouldUpdate())
@@ -372,10 +396,12 @@ public class GuildManagerUpdatable
             body.put("default_notification_level", defaultNotificationLevel.getValue().getKey());
         if (mfaLevel.shouldUpdate())
             body.put("mfa_level", mfaLevel.getValue().getKey());
+        if (explicitContentLevel.shouldUpdate())
+            body.put("explicit_content_filter", explicitContentLevel.getValue().getKey());
 
         reset(); //now that we've built our JSON object, reset the manager back to the non-modified state
         Route.CompiledRoute route = Route.Guilds.MODIFY_GUILD.compile(guild.getId());
-        return new RestAction<Void>(guild.getJDA(), route, body)
+        return new AuditableRestAction<Void>(guild.getJDA(), route, body)
         {
             @Override
             protected void handleResponse(Response response, Request<Void> request)
@@ -398,7 +424,8 @@ public class GuildManagerUpdatable
                 || afkChannel.shouldUpdate()
                 || verificationLevel.shouldUpdate()
                 || defaultNotificationLevel.shouldUpdate()
-                || mfaLevel.shouldUpdate();
+                || mfaLevel.shouldUpdate()
+                || explicitContentLevel.shouldUpdate();
     }
 
     protected void checkAvailable()
@@ -522,6 +549,17 @@ public class GuildManagerUpdatable
                 Args.notNull(value, "MFALevel");
                 if (value == Guild.MFALevel.UNKNOWN)
                     throw new IllegalArgumentException("Cannot set MFALevel to UNKNOWN");
+            }
+        };
+
+        this.explicitContentLevel = new GuildField<Guild.ExplicitContentLevel>(this, guild::getExplicitContentLevel)
+        {
+            @Override
+            public void checkValue(Guild.ExplicitContentLevel value)
+            {
+                Args.notNull(value, "ExplicitContentLevel");
+                Args.check(value != Guild.ExplicitContentLevel.UNKNOWN,
+                        "Cannot set ExplicitContentLevel to UNKNOWN");
             }
         };
     }

@@ -23,6 +23,7 @@ import net.dv8tion.jda.core.managers.GuildController;
 import net.dv8tion.jda.core.managers.GuildManager;
 import net.dv8tion.jda.core.managers.GuildManagerUpdatable;
 import net.dv8tion.jda.core.requests.RestAction;
+import net.dv8tion.jda.core.requests.restaction.pagination.AuditLogPaginationAction;
 
 import java.util.Collection;
 import java.util.List;
@@ -631,6 +632,40 @@ public interface Guild extends ISnowflake
     MentionPaginationAction getRecentMentions();
 
     /**
+     * A {@link net.dv8tion.jda.core.requests.restaction.pagination.PaginationAction PaginationAction} implementation
+     * that allows to {@link Iterable iterate} over all {@link net.dv8tion.jda.core.audit.AuditLogEntry AuditLogEntries} of
+     * this Guild.
+     * <br>This iterates from the most recent action to the first logged one. (Limit 90 days into history by discord api)
+     *
+     * <h1>Examples</h1>
+     * <pre><code>
+     * public boolean isLogged(Guild guild, ActionType type, long targetId)
+     * {
+     *     for (AuditLogEntry entry : guild.<u>getAuditLogs().cache(false)</u>)
+     *     {
+     *         if (entry.getType() == type{@literal &&} entry.getTargetIdLong() == targetId)
+     *             return true; // The action is logged
+     *     }
+     *     return false; // nothing found in audit logs
+     * }
+     *
+     * public{@literal List<AuditLogEntry>} getActionsBy(Guild guild, User user)
+     * {
+     *     return guild.<u>getAuditLogs().cache(false)</u>.stream()
+     *         .filter(it{@literal ->} it.getUser().equals(user))
+     *         .collect(Collectors.toList()); // collects actions done by user
+     * }
+     * </code></pre>
+     *
+     * @throws net.dv8tion.jda.core.exceptions.PermissionException
+     *         If the currently logged in account
+     *         does not have the permission {@link net.dv8tion.jda.core.Permission#VIEW_AUDIT_LOGS VIEW_AUDIT_LOGS}
+     *
+     * @return {@link net.dv8tion.jda.core.requests.restaction.pagination.AuditLogPaginationAction AuditLogPaginationAction}
+     */
+    AuditLogPaginationAction getAuditLogs();
+
+    /**
      * Used to leave a Guild. If the currently logged in account is the owner of this guild ({@link net.dv8tion.jda.core.entities.Guild#getOwner()})
      * then ownership of the Guild needs to be transferred to a different {@link net.dv8tion.jda.core.entities.Member Member}
      * before leaving using {@link GuildController#transferOwnership(Member)}.
@@ -771,6 +806,14 @@ public interface Guild extends ISnowflake
     MFALevel getRequiredMFALevel();
 
     /**
+     * The level of content filtering enabled in this Guild.
+     * <br>This decides which messages sent by which Members will be scanned for explicit content.
+     *
+     * @return {@link net.dv8tion.jda.core.entities.Guild.ExplicitContentLevel ExplicitContentLevel} for this Guild
+     */
+    ExplicitContentLevel getExplicitContentLevel();
+
+    /**
      * Checks if the current Verification-level of this guild allows JDA to send messages to it.
      *
      * @return True if Verification-level allows sending of messages, false if not.
@@ -845,10 +888,11 @@ public interface Guild extends ISnowflake
      * Represents the Verification-Level of the Guild.
      * The Verification-Level determines what requirement you have to meet to be able to speak in this Guild.
      * <p>
-     * <br><b>None</b>   {@literal ->} everyone can talk.
-     * <br><b>Low</b>    {@literal ->} verified email required.
-     * <br><b>Medium</b> {@literal ->} you have to be member of discord for at least 5min.
-     * <br><b>High</b>   {@literal ->} you have to be member of this guild for at least 10min.
+     * <br><b>None</b>      {@literal ->} everyone can talk.
+     * <br><b>Low</b>       {@literal ->} verified email required.
+     * <br><b>Medium</b>    {@literal ->} you have to be member of discord for at least 5min.
+     * <br><b>High</b>      {@literal ->} you have to be member of this guild for at least 10min.
+     * <br><b>Very High</b> {@literal ->} you must have a verified phone on your discord account.
      */
     enum VerificationLevel
     {
@@ -856,6 +900,7 @@ public interface Guild extends ISnowflake
         LOW(1),
         MEDIUM(2),
         HIGH(3),
+        VERY_HIGH(4),
         UNKNOWN(-1);
 
         private final int key;
@@ -989,6 +1034,58 @@ public interface Guild extends ISnowflake
             for (MFALevel level : values())
             {
                 if (level.getKey() == key)
+                    return level;
+            }
+            return UNKNOWN;
+        }
+    }
+
+    /**
+     * The Explicit-Content-Filter Level of a Guild.
+     * <br>This decides whom's messages should be scanned for explicit content.
+     */
+    enum ExplicitContentLevel
+    {
+        OFF(0, "Don't scan any messages."),
+        NO_ROLE(1, "Scan messages from members without a role."),
+        ALL(2, "Scan messages sent by all members."),
+
+        UNKNOWN(-1, "Unknown filter level!");
+
+        private final int key;
+        private final String description;
+
+        ExplicitContentLevel(int key, String description)
+        {
+            this.key = key;
+            this.description = description;
+        }
+
+        /**
+         * The key for this level
+         *
+         * @return key
+         */
+        public int getKey()
+        {
+            return key;
+        }
+
+        /**
+         * Description of this level in the official Discord Client (as of 5th May, 2017)
+         *
+         * @return Description for this level
+         */
+        public String getDescription()
+        {
+            return description;
+        }
+
+        public static ExplicitContentLevel fromKey(int key)
+        {
+            for (ExplicitContentLevel level : values())
+            {
+                if (level.key == key)
                     return level;
             }
             return UNKNOWN;
